@@ -1,0 +1,42 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]: W
+      - generic [ref=e7]:
+        - strong [ref=e8]: 词间阅读器
+        - text: 上下文中英混合阅读
+    - generic [ref=e9] [cursor=pointer]: 导入 EPUB / TXT
+    - generic [ref=e10]: toggle-sample · 1 个章节
+    - textbox "搜索章节，例如：卷二十一" [ref=e11]
+    - navigation [ref=e12]:
+      - button "正文" [ref=e33] [cursor=pointer]
+    - generic [ref=e13]:
+      - group [ref=e14]:
+        - generic "API 设置 已配置 · qwen-flash" [ref=e15] [cursor=pointer]:
+          - text: API 设置
+          - generic [ref=e16]: 已配置 · qwen-flash
+      - generic [ref=e17]:
+        - generic [ref=e18]: 浏览器已用 0.1 MB / 可用配额 7168 MB
+        - button "清除缓存" [ref=e19] [cursor=pointer]
+  - main [ref=e20]:
+    - generic [ref=e21]:
+      - generic [ref=e22]:
+        - text: 水平
+        - combobox "水平" [ref=e23]:
+          - option "四级"
+          - option "六级" [selected]
+      - generic [ref=e24]:
+        - text: 密度
+        - combobox "密度" [ref=e25]:
+          - option "低（10%）"
+          - option "中（20%）" [selected]
+          - option "高（40%）"
+      - button "AI 生成本章" [ref=e26] [cursor=pointer]
+    - generic [ref=e27]: 本章已完成；结果已存入浏览器缓存，下次打开无需重复调用 AI。
+    - article [ref=e29]:
+      - paragraph [ref=e35]:
+        - text: 快到
+        - button "stationery store，点击显示原文" [ref=e36] [cursor=pointer]: stationery store
+        - text: 门口，杜太白又
+        - button "encountered，点击显示原文" [ref=e37] [cursor=pointer]: encountered
+        - text: 一个他不愿意见到的人。

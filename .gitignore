@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+.env.local
+.model-profiles.local.json
+.model-profiles.local.json.tmp
+.pages-export-staging/
+.model-api-test-*/
+*.log

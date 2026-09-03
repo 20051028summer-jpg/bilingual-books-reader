@@ -1,0 +1,252 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]: W
+      - generic [ref=e7]:
+        - strong [ref=e8]: 词间阅读器
+        - text: 上下文中英混合阅读
+    - generic [ref=e9] [cursor=pointer]: 导入 EPUB / TXT
+    - generic [ref=e10]: 《大唐双龙传》（精校封面全本）作者：黄易【宝猪】 · 938 个章节
+    - textbox "搜索章节，例如：卷二十一" [ref=e11]: 目录
+    - navigation [ref=e12]:
+      - button "目录" [ref=e972] [cursor=pointer]
+    - generic [ref=e13]:
+      - group [ref=e14]:
+        - generic "API 设置 未配置" [ref=e15] [cursor=pointer]:
+          - text: API 设置
+          - generic [ref=e16]: 未配置
+      - generic [ref=e17]:
+        - generic [ref=e18]: 浏览器已用 15.9 MB / 可用配额 5136 MB
+        - button "清除缓存" [ref=e19] [cursor=pointer]
+  - main [ref=e20]:
+    - generic [ref=e21]:
+      - generic [ref=e22]:
+        - text: 水平
+        - combobox "水平" [ref=e23]:
+          - option "四级"
+          - option "六级" [selected]
+      - generic [ref=e24]:
+        - text: 密度
+        - combobox "密度" [ref=e25]:
+          - option "轻"
+          - option "中" [selected]
+          - option "高"
+      - button "AI 生成本章" [ref=e26] [cursor=pointer]
+    - generic [ref=e27]: 已打开：目录
+    - article [ref=e29]:
+      - paragraph [ref=e973]:
+        - link "目录" [ref=e974] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e975]:
+        - link "内容简介：" [ref=e976] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e977]:
+        - link "制作说明：" [ref=e978] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e979]:
+        - link "台湾万象版封面欣赏：" [ref=e980] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e981]:
+        - link "黄易出版社版封面欣赏：" [ref=e982] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e983]:
+        - link "时报文化版封面欣赏：" [ref=e984] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e985]:
+        - link "黄易出版社修订版封面欣赏：" [ref=e986] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e987]:
+        - link "云南人民出版社版封面欣赏：" [ref=e988] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e989]:
+        - link "卷一" [ref=e990] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e991]:
+        - link "卷二" [ref=e992] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e993]:
+        - link "卷三" [ref=e994] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e995]:
+        - link "卷四" [ref=e996] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e997]:
+        - link "卷五" [ref=e998] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e999]:
+        - link "卷六" [ref=e1000] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1001]:
+        - link "卷七" [ref=e1002] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1003]:
+        - link "卷八" [ref=e1004] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1005]:
+        - link "卷九" [ref=e1006] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1007]:
+        - link "卷十" [ref=e1008] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1009]:
+        - link "卷十一" [ref=e1010] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1011]:
+        - link "卷十二" [ref=e1012] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1013]:
+        - link "卷十三" [ref=e1014] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1015]:
+        - link "卷十四" [ref=e1016] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1017]:
+        - link "卷十五" [ref=e1018] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1019]:
+        - link "卷十六" [ref=e1020] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1021]:
+        - link "卷十七" [ref=e1022] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1023]:
+        - link "卷十八" [ref=e1024] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1025]:
+        - link "卷十九" [ref=e1026] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1027]:
+        - link "卷二十" [ref=e1028] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1029]:
+        - link "卷二十一" [ref=e1030] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1031]:
+        - link "卷二十二" [ref=e1032] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1033]:
+        - link "卷二十三" [ref=e1034] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1035]:
+        - link "卷二十四" [ref=e1036] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1037]:
+        - link "卷二十五" [ref=e1038] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1039]:
+        - link "卷二十六" [ref=e1040] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1041]:
+        - link "卷二十七" [ref=e1042] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1043]:
+        - link "卷二十八" [ref=e1044] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1045]:
+        - link "卷二十九" [ref=e1046] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1047]:
+        - link "卷三十" [ref=e1048] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1049]:
+        - link "卷三十一" [ref=e1050] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1051]:
+        - link "卷三十二" [ref=e1052] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1053]:
+        - link "卷三十三" [ref=e1054] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1055]:
+        - link "卷三十四" [ref=e1056] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1057]:
+        - link "卷三十五" [ref=e1058] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1059]:
+        - link "卷三十六" [ref=e1060] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1061]:
+        - link "卷三十七" [ref=e1062] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1063]:
+        - link "卷三十八" [ref=e1064] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1065]:
+        - link "卷三十九" [ref=e1066] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1067]:
+        - link "卷四十" [ref=e1068] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1069]:
+        - link "卷四十一" [ref=e1070] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1071]:
+        - link "卷四十二" [ref=e1072] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1073]:
+        - link "卷四十三" [ref=e1074] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1075]:
+        - link "卷四十四" [ref=e1076] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1077]:
+        - link "卷四十五" [ref=e1078] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1079]:
+        - link "卷四十六" [ref=e1080] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1081]:
+        - link "卷四十七" [ref=e1082] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1083]:
+        - link "卷四十八" [ref=e1084] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1085]:
+        - link "卷四十九" [ref=e1086] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1087]:
+        - link "卷五十" [ref=e1088] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1089]:
+        - link "卷五十一" [ref=e1090] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1091]:
+        - link "卷五十二" [ref=e1092] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1093]:
+        - link "卷五十三" [ref=e1094] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1095]:
+        - link "卷五十四" [ref=e1096] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1097]:
+        - link "卷五十五" [ref=e1098] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1099]:
+        - link "卷五十六" [ref=e1100] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1101]:
+        - link "卷五十七" [ref=e1102] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1103]:
+        - link "卷五十八" [ref=e1104] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1105]:
+        - link "卷五十九" [ref=e1106] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1107]:
+        - link "卷六十" [ref=e1108] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1109]:
+        - link "卷六十一" [ref=e1110] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1111]:
+        - link "卷六十二" [ref=e1112] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1113]:
+        - link "卷六十三" [ref=e1114] [cursor=pointer]:
+          - /url: "#"
+      - paragraph [ref=e1115]:
+        - link "封底" [ref=e1116] [cursor=pointer]:
+          - /url: "#"

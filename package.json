@@ -1,0 +1,24 @@
+{
+  "name": "wordnov-ai-reader",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.mjs",
+    "build": "vite build",
+    "build:pages": "vite build --config vite.pages.config.js",
+    "start": "node server.mjs --production",
+    "test": "node --test --test-isolation=none"
+  },
+  "dependencies": {
+    "dotenv": "16.6.1",
+    "epubjs": "0.3.93",
+    "express": "5.1.0"
+  },
+  "devDependencies": {
+    "vite": "7.1.7"
+  },
+  "overrides": {
+    "@xmldom/xmldom": "0.8.11"
+  }
+}
