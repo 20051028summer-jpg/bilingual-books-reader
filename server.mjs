@@ -38,6 +38,70 @@ const modelProfiles = createModelProfiles(path.join(root, ".model-profiles.local
 const app = express();
 const execFileAsync = promisify(execFile);
 let pagesExportInProgress = false;
+let lastPagesSyncReport = null;
+
+app.get("/api/pages-manifest", (_request, response) => {
+  const libraryDir = path.join(root, "pages-reader", "public", "library");
+  const catalogPath = path.join(libraryDir, "catalog.json");
+  let manifestPath = path.join(libraryDir, "manifest.json");
+  const sha256 = String(_request.query.sha256 || "");
+  if (sha256 && /^[a-f0-9]{64}$/i.test(sha256) && fs.existsSync(catalogPath)) {
+    try {
+      const catalog = JSON.parse(fs.readFileSync(catalogPath, "utf8"));
+      const entry = catalog.books?.find((book) => book.sha256 === sha256);
+      if (entry?.manifest === `library/manifests/${sha256}.json`) {
+        manifestPath = path.join(libraryDir, "manifests", `${sha256}.json`);
+      } else if (entry?.manifest === "library/manifest.json") {
+        manifestPath = path.join(libraryDir, "manifest.json");
+      }
+    } catch { /* Fall through to the latest published manifest. */ }
+  }
+  if (!fs.existsSync(manifestPath)) {
+    response.status(404).json({ error: "尚未生成静态阅读版" });
+    return;
+  }
+  try {
+    response.set("Cache-Control", "no-store");
+    response.json(JSON.parse(fs.readFileSync(manifestPath, "utf8")));
+  } catch (error) {
+    response.status(500).json({ error: `发布清单读取失败：${error.message}` });
+  }
+});
+
+app.get("/api/pages-catalog", (_request, response) => {
+  const libraryDir = path.join(root, "pages-reader", "public", "library");
+  const catalogPath = path.join(libraryDir, "catalog.json");
+  response.set("Cache-Control", "no-store");
+  try {
+    if (fs.existsSync(catalogPath)) {
+      response.json(JSON.parse(fs.readFileSync(catalogPath, "utf8")));
+      return;
+    }
+    const manifestPath = path.join(libraryDir, "manifest.json");
+    if (!fs.existsSync(manifestPath)) {
+      response.status(404).json({ error: "尚未生成静态阅读版" });
+      return;
+    }
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+    response.json({
+      schemaVersion: 1,
+      exportedAt: manifest.exportedAt,
+      books: [{
+        sha256: manifest.book.sha256,
+        title: manifest.book.title,
+        format: manifest.book.format,
+        chapterCount: manifest.book.chapterCount,
+        bytes: manifest.book.bytes,
+        asset: manifest.book.asset,
+        manifest: "library/manifest.json",
+        exportedAt: manifest.exportedAt,
+        stats: manifest.stats,
+      }],
+    });
+  } catch (error) {
+    response.status(500).json({ error: `书架目录读取失败：${error.message}` });
+  }
+});
 
 app.post("/api/pages-export/book", express.raw({ type: "application/octet-stream", limit: "100mb" }), (request, response) => {
   try {
@@ -59,7 +123,7 @@ app.post("/api/pages-export/manifest", express.json({ limit: "50mb" }), async (r
     const staged = findStagedBook(root, request.body?.uploadToken);
     if (!staged) throw new Error("待发布原书不存在，请重新导出");
     const manifest = sanitizePagesManifest(request.body, staged);
-    publishStagedPagesBook(root, staged, manifest);
+    const published = publishStagedPagesBook(root, staged, manifest);
     await execFileAsync(process.execPath, [path.join(root, "node_modules", "vite", "bin", "vite.js"), "build", "--config", "vite.pages.config.js"], {
       cwd: root,
       windowsHide: true,
@@ -69,8 +133,8 @@ app.post("/api/pages-export/manifest", express.json({ limit: "50mb" }), async (r
     response.json({
       ok: true,
       previewUrl: "/pages-preview/",
-      exportedAt: manifest.exportedAt,
-      stats: manifest.stats,
+      exportedAt: published.exportedAt,
+      stats: published.stats,
       message: "静态阅读版已更新；提交并推送仓库后，GitHub Pages 会自动部署。",
     });
   } catch (error) {
@@ -82,6 +146,23 @@ app.post("/api/pages-export/manifest", express.json({ limit: "50mb" }), async (r
 });
 
 app.use(express.json({ limit: "128kb" }));
+
+app.post("/api/pages-sync-report", (request, response) => {
+  const changedCount = Math.max(0, Number(request.body?.changedCount) || 0);
+  const chapterCount = Math.max(0, Number(request.body?.chapterCount) || 0);
+  lastPagesSyncReport = {
+    bookId: String(request.body?.bookId || "").slice(0, 256),
+    changedCount,
+    chapterCount,
+    reportedAt: new Date().toISOString(),
+  };
+  console.log(`[pages-sync] IndexedDB 同步完成：检查 ${chapterCount} 章，更新 ${changedCount} 章`);
+  response.json({ ok: true, report: lastPagesSyncReport });
+});
+
+app.get("/api/pages-sync-report", (_request, response) => {
+  response.json({ report: lastPagesSyncReport });
+});
 
 function parseJsonObject(content) {
   const cleaned = String(content ?? "").trim().replace(/^\`\`\`(?:json)?\s*/i, "").replace(/\s*\`\`\`$/, "");

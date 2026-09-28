@@ -1,6 +1,7 @@
 export const DENSITY_PERCENTAGES = Object.freeze({
   light: 10,
   medium: 20,
+  target30: 30,
   dense: 40,
 });
 
@@ -8,7 +9,7 @@ export function normalizeDensity(value = "medium") {
   const density = typeof value === "string" && value in DENSITY_PERCENTAGES
     ? DENSITY_PERCENTAGES[value]
     : Number(value);
-  if (![10, 20, 40].includes(density)) throw new Error("替换密度必须是 10%、20% 或 40%");
+  if (![10, 20, 25, 30, 40].includes(density)) throw new Error("替换密度必须是 10%、20%、25%、30% 或 40%");
   return density;
 }
 
@@ -18,4 +19,3 @@ export function normalizeLevel(value = "cet6") {
   if (level === "CET6") return "CET-6";
   throw new Error("学习水平必须是 CET-4 或 CET-6");
 }
-

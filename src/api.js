@@ -4,6 +4,32 @@ export async function getApiStatus() {
   return response.json();
 }
 
+export async function getPublishedManifest(sha256 = "") {
+  const endpoint = sha256 ? `/api/pages-manifest?sha256=${encodeURIComponent(sha256)}` : "/api/pages-manifest";
+  const response = await fetch(endpoint, { cache: "no-store" });
+  if (response.status === 404) return null;
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "无法读取已发布的双语内容");
+  return data;
+}
+
+export async function getPublishedCatalog() {
+  const response = await fetch("/api/pages-catalog", { cache: "no-store" });
+  if (response.status === 404) return null;
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "无法读取已发布的书架目录");
+  return data;
+}
+
+export async function reportPublishedSync(summary) {
+  const response = await fetch("/api/pages-sync-report", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(summary),
+  });
+  if (!response.ok) throw new Error("本地同步结果确认失败");
+}
+
 export async function saveModelConfig(model, apiKey, options = {}) {
   const response = await fetch("/api/config", {
     method: "POST",

@@ -1,4 +1,5 @@
 import { chapterCacheKeys, legacyChapterIndex } from "./cache-keys.js";
+import { publishedRecordsForBook } from "./published-sync.js";
 import { isChapterRecord, mergeSharedChapter } from "./shared-chapter.js";
 
 const DB_NAME = "wordnov-ai-reader";
@@ -76,6 +77,38 @@ export async function writeCachedChapter(key, value) {
   });
 }
 
+export async function syncPublishedManifest(bookId, manifest) {
+  const published = publishedRecordsForBook(bookId, manifest);
+  if (!published.compatible) return { compatible: false, changedCount: 0, chapterCount: 0 };
+  if (published.records.length === 0) return { compatible: true, changedCount: 0, chapterCount: 0 };
+
+  const db = await openDatabase();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+    let changedCount = 0;
+    for (const value of published.records) {
+      const key = chapterCacheKeys(value).current;
+      const request = store.get(key);
+      request.onsuccess = () => {
+        const existing = request.result;
+        const merged = mergeSharedChapter([{ key, value: existing }, { key, value }], value);
+        if (JSON.stringify(existing) === JSON.stringify(merged)) return;
+        store.put(merged, key);
+        changedCount += 1;
+      };
+    }
+    tx.oncomplete = () => {
+      db.close();
+      resolve({ compatible: true, changedCount, chapterCount: published.records.length });
+    };
+    tx.onerror = tx.onabort = () => {
+      db.close();
+      reject(tx.error || new Error("发布内容同步事务未完成；原记录已回滚"));
+    };
+  });
+}
+
 export async function migrateBookCache(bookId) {
   const db = await openDatabase();
   return new Promise((resolve, reject) => {
@@ -114,16 +147,16 @@ export async function migrateBookCache(bookId) {
   });
 }
 
-export async function writeLastBook(file) {
+export async function writeLastBook(file, bookId) {
   const db = await openDatabase();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STATE_STORE, "readwrite");
     tx.objectStore(STATE_STORE).put({
+      bookId,
       name: file.name,
       type: file.type,
       size: file.size,
       lastModified: file.lastModified,
-      blob: file,
       savedAt: Date.now(),
     }, "last-book");
     tx.oncomplete = () => { db.close(); resolve(); };
@@ -131,15 +164,95 @@ export async function writeLastBook(file) {
   });
 }
 
-export async function readLastBook() {
+export async function listSavedBooks() {
   const db = await openDatabase();
   return new Promise((resolve, reject) => {
+    const tx = db.transaction(STATE_STORE, "readonly");
+    const request = tx.objectStore(STATE_STORE).get("book-library");
+    request.onsuccess = () => resolve(Array.isArray(request.result?.books) ? request.result.books : []);
+    request.onerror = () => reject(request.error);
+    tx.oncomplete = () => db.close();
+  });
+}
+
+export async function readSavedBook(bookId) {
+  const db = await openDatabase();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STATE_STORE, "readonly");
+    const request = tx.objectStore(STATE_STORE).get(`book:${bookId}`);
+    request.onsuccess = () => resolve(request.result ?? null);
+    request.onerror = () => reject(request.error);
+    tx.oncomplete = () => db.close();
+  });
+}
+
+export async function saveBookToLibrary(file, book) {
+  const db = await openDatabase();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STATE_STORE, "readwrite");
+    const store = tx.objectStore(STATE_STORE);
+    const request = store.get("book-library");
+    request.onsuccess = () => {
+      const savedAt = Date.now();
+      const existing = Array.isArray(request.result?.books) ? request.result.books : [];
+      const books = existing.filter((entry) => entry.id !== book.id);
+      books.unshift({
+        id: book.id,
+        title: book.title,
+        format: book.format,
+        chapterCount: book.chapters.length,
+        size: file.size,
+        lastModified: file.lastModified,
+        savedAt,
+      });
+      store.put({ name: file.name, type: file.type, size: file.size, lastModified: file.lastModified, blob: file, savedAt }, `book:${book.id}`);
+      store.put({ books, updatedAt: savedAt }, "book-library");
+    };
+    tx.oncomplete = () => { db.close(); resolve(); };
+    tx.onerror = tx.onabort = () => { db.close(); reject(tx.error || new Error("保存书架数据失败")); };
+  });
+}
+
+export async function deleteSavedBook(bookId) {
+  const db = await openDatabase();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction([STORE_NAME, STATE_STORE], "readwrite");
+    const chapterStore = tx.objectStore(STORE_NAME);
+    const stateStore = tx.objectStore(STATE_STORE);
+    stateStore.delete(`book:${bookId}`);
+    const libraryRequest = stateStore.get("book-library");
+    libraryRequest.onsuccess = () => {
+      const books = Array.isArray(libraryRequest.result?.books) ? libraryRequest.result.books : [];
+      stateStore.put({ books: books.filter((entry) => entry.id !== bookId), updatedAt: Date.now() }, "book-library");
+    };
+    const lastBookRequest = stateStore.get("last-book");
+    lastBookRequest.onsuccess = () => {
+      if (lastBookRequest.result?.bookId === bookId) stateStore.delete("last-book");
+    };
+    const cursorRequest = chapterStore.openCursor();
+    cursorRequest.onsuccess = () => {
+      const cursor = cursorRequest.result;
+      if (!cursor) return;
+      const value = cursor.value;
+      if (value?.bookId === bookId || legacyChapterIndex(String(cursor.key), bookId) !== null) cursor.delete();
+      cursor.continue();
+    };
+    tx.oncomplete = () => { db.close(); resolve(); };
+    tx.onerror = tx.onabort = () => { db.close(); reject(tx.error || new Error("删除书籍和章节缓存失败")); };
+  });
+}
+
+export async function readLastBook() {
+  const db = await openDatabase();
+  const stored = await new Promise((resolve, reject) => {
     const tx = db.transaction(STATE_STORE, "readonly");
     const request = tx.objectStore(STATE_STORE).get("last-book");
     request.onsuccess = () => resolve(request.result ?? null);
     request.onerror = () => reject(request.error);
     tx.oncomplete = () => db.close();
   });
+  if (stored?.blob || !stored?.bookId) return stored;
+  return (await readSavedBook(stored.bookId)) || stored;
 }
 
 export async function clearAllStoredData() {

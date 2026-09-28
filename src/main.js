@@ -1,16 +1,29 @@
 import "./styles.css";
 import { loadBook } from "./book-loader.js";
-import { exportPagesReader, getApiStatus, mixParagraphBatch, saveModelConfig } from "./api.js";
+import {
+  exportPagesReader,
+  getApiStatus,
+  getPublishedCatalog,
+  getPublishedManifest,
+  mixParagraphBatch,
+  reportPublishedSync,
+  saveModelConfig,
+} from "./api.js";
 import { chapterCacheKeys, readModelChapterCache } from "./cache-keys.js";
 import { runChapterTranslation } from "./chapter-runner.js";
 import { THINKING_LABELS, thinkingCapabilities, normalizeThinking } from "./request-settings.js";
 import {
   clearAllStoredData,
+  deleteSavedBook,
   getStorageEstimate,
   listBookChapterCaches,
   migrateBookCache,
+  listSavedBooks,
   readCachedChapter,
   readLastBook,
+  readSavedBook,
+  saveBookToLibrary,
+  syncPublishedManifest,
   writeCachedChapter,
   writeLastBook,
 } from "./storage.js";
@@ -22,6 +35,7 @@ const app = document.querySelector("#app");
 const state = {
   book: null,
   sourceFile: null,
+  shelfBooks: [],
   chapterIndex: 0,
   paragraphs: [],
   mixedByParagraph: new Map(),
@@ -41,6 +55,116 @@ function setStatus(message, kind = "info") {
   if (!node) return;
   node.textContent = message;
   node.dataset.kind = kind;
+}
+
+function updateShelfButton() {
+  const button = document.querySelector("#open-book-shelf");
+  if (button) button.textContent = `📚 书架 · ${state.shelfBooks.length} 本`;
+}
+
+async function refreshBookShelf() {
+  state.shelfBooks = await listSavedBooks();
+  updateShelfButton();
+  const grid = document.querySelector("#book-shelf-grid");
+  if (!grid) return;
+  grid.replaceChildren();
+  if (!state.shelfBooks.length) {
+    const empty = document.createElement("p");
+    empty.className = "shelf-empty";
+    empty.textContent = "书架还是空的。点击“导入另一本”添加 EPUB 或 TXT。";
+    grid.append(empty);
+    return;
+  }
+  for (const entry of state.shelfBooks) {
+    const card = document.createElement("article");
+    card.className = `shelf-book-card ${entry.id === state.book?.id ? "active" : ""}`;
+    const openButton = document.createElement("button");
+    openButton.type = "button";
+    openButton.className = "shelf-book-open";
+    const cover = document.createElement("span");
+    cover.className = "shelf-book-cover";
+    cover.textContent = entry.format === "TXT" ? "文" : "书";
+    const title = document.createElement("strong");
+    title.className = "shelf-book-title";
+    title.textContent = entry.title || entry.id;
+    const details = document.createElement("span");
+    details.className = "shelf-book-details";
+    details.textContent = `${entry.format || "书籍"} · ${entry.chapterCount || 0} 章 · ${formatBytes(entry.size)}`;
+    openButton.append(cover, title, details);
+    openButton.addEventListener("click", () => openSavedBook(entry));
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.className = "shelf-book-delete";
+    deleteButton.textContent = "删除此书";
+    deleteButton.addEventListener("click", () => deleteBookFromShelf(entry));
+    card.append(openButton, deleteButton);
+    grid.append(card);
+  }
+}
+
+async function deleteBookFromShelf(entry) {
+  if (state.generating || state.savingConfig) {
+    setStatus("请先等待当前任务完成，再删除书籍。", "warning");
+    return;
+  }
+  const confirmed = window.confirm(
+    `从本机书架删除《${entry.title || "未命名书籍"}》？\n\n该书的本地副本和章节缓存也会删除。不会删除原始 EPUB/TXT 文件或 GitHub Pages 上已发布的版本。`,
+  );
+  if (!confirmed) return;
+  try {
+    await deleteSavedBook(entry.id);
+    localStorage.removeItem(`wordnov-last-chapter:${entry.id}`);
+    await refreshBookShelf();
+    if (state.book?.id === entry.id) {
+      state.book = null;
+      state.sourceFile = null;
+      state.chapterIndex = 0;
+      state.paragraphs = [];
+      state.mixedByParagraph.clear();
+      document.querySelector("#book-meta").textContent = "尚未打开书籍";
+      document.querySelector("#chapter-search").value = "";
+      state.search = "";
+      renderChapterList();
+      document.querySelector("#reader").innerHTML = "<div class=\"empty-state\"><h1>书籍已从本机书架删除</h1><p>导入一本 EPUB / TXT，或从书架选择其他书籍。</p></div>";
+      setStatus(`已从本机书架删除《${entry.title}》。` , "success");
+    } else {
+      setStatus(`已从本机书架删除《${entry.title}》。`, "success");
+    }
+  } catch (error) {
+    setStatus(`删除《${entry.title || "书籍"}》失败：${error.message}`, "error");
+  }
+}
+
+async function openBookShelf() {
+  if (state.generating || state.savingConfig) {
+    setStatus("请先等待当前任务完成，再切换书籍。", "warning");
+    return;
+  }
+  try {
+    await refreshBookShelf();
+    document.querySelector("#book-shelf-overlay").hidden = false;
+  } catch (error) {
+    setStatus(`读取书架失败：${error.message}`, "error");
+  }
+}
+
+async function openSavedBook(entry) {
+  if (state.generating || state.savingConfig) {
+    setStatus("请先等待当前任务完成，再切换书籍。", "warning");
+    return;
+  }
+  try {
+    const stored = await readSavedBook(entry.id);
+    if (!stored?.blob) throw new Error("本地书籍副本不存在，请重新导入该书。");
+    const file = new File([stored.blob], stored.name, {
+      type: stored.type || stored.blob.type,
+      lastModified: stored.lastModified || Date.now(),
+    });
+    await importBook(file, { persist: true, restored: true });
+    document.querySelector("#book-shelf-overlay").hidden = true;
+  } catch (error) {
+    setStatus(`打开《${entry.title || "书籍"}》失败：${error.message}`, "error");
+  }
 }
 
 function setProgress(done, total) {
@@ -97,6 +221,12 @@ function renderChapterList() {
   list.querySelectorAll("[data-chapter-index]").forEach((button) => {
     button.addEventListener("click", () => openChapter(Number(button.dataset.chapterIndex)));
   });
+  const activeChapter = list.querySelector(".chapter-button.active");
+  if (activeChapter) {
+    const listBounds = list.getBoundingClientRect();
+    const chapterBounds = activeChapter.getBoundingClientRect();
+    list.scrollTop += chapterBounds.top - listBounds.top - (list.clientHeight - activeChapter.offsetHeight) / 2;
+  }
 }
 
 function cacheKeysForCurrentChapter() {
@@ -164,16 +294,47 @@ async function importBook(file, { persist = true, restored = false } = {}) {
   if (meta) meta.textContent = `${book.title} · ${book.chapters.length} 个章节`;
   const search = document.querySelector("#chapter-search");
   if (search) search.value = "";
-  if (persist) {
+  if (persist || restored) {
     try {
-      await writeLastBook(file);
+      await saveBookToLibrary(file, book);
+      await writeLastBook(file, book.id);
+      await refreshBookShelf();
     } catch (error) {
-      setStatus(`书已打开，但浏览器未能保存原书：${error.message}`, "warning");
+      setStatus(`书已打开，但浏览器未能保存到书架：${error.message}`, "warning");
     }
   }
   const savedIndex = Number(localStorage.getItem(`wordnov-last-chapter:${book.id}`));
   await openChapter(Number.isInteger(savedIndex) && book.chapters[savedIndex] ? savedIndex : 0);
   await refreshStorageSummary();
+}
+
+async function syncPublishedCache() {
+  try {
+    const catalog = await getPublishedCatalog();
+    const entries = Array.isArray(catalog?.books) ? catalog.books : [];
+    if (!entries.length) {
+      const manifest = await getPublishedManifest();
+      if (!manifest?.book?.id) return null;
+      const summary = await syncPublishedManifest(manifest.book.id, manifest);
+      await reportPublishedSync({ ...summary, bookId: manifest.book.id });
+      return summary;
+    }
+    let changedCount = 0;
+    let chapterCount = 0;
+    for (const entry of entries) {
+      const manifest = await getPublishedManifest(entry.sha256);
+      if (!manifest?.book?.id) continue;
+      const summary = await syncPublishedManifest(manifest.book.id, manifest);
+      changedCount += summary.changedCount;
+      chapterCount += summary.chapterCount;
+    }
+    const summary = { changedCount, chapterCount, compatible: true };
+    await reportPublishedSync({ ...summary, bookId: `books:${entries.length}` });
+    return summary;
+  } catch (error) {
+    console.warn(`[published-sync] ${error.message}`);
+    return null;
+  }
 }
 
 async function handlePagesExport() {
@@ -197,7 +358,10 @@ async function handlePagesExport() {
       },
       chapters: caches.map((cache) => ({
         chapterIndex: cache.chapterIndex,
+        title: state.book.chapters[cache.chapterIndex]?.title,
         mixedByParagraph: cache.mixedByParagraph,
+        paragraphMeta: cache.paragraphMeta,
+        updatedAt: cache.updatedAt,
         completedCount: cache.completedCount,
         totalCount: cache.totalCount,
       })),
@@ -385,8 +549,10 @@ async function handleSaveModelConfig() {
 }
 
 async function handleClearCache() {
-  if (!window.confirm("清除已保存的原书和全部 AI 换词结果？此操作不会删除你的 EPUB/TXT 原文件。")) return;
+  if (!window.confirm("清除书架中的原书副本和全部 AI 换词结果？此操作不会删除你的 EPUB/TXT 原文件。")) return;
   await clearAllStoredData();
+  state.shelfBooks = [];
+  updateShelfButton();
   state.mixedByParagraph.clear();
   renderReader();
   await refreshStorageSummary();
@@ -444,7 +610,8 @@ function renderApp() {
           <input id="book-file" type="file" accept=".epub,.txt,text/plain,application/epub+zip">
           导入 EPUB / TXT
         </label>
-        <div id="book-meta" class="book-meta">尚未导入书籍<br><small>浏览器只保留最近一本原书副本</small></div>
+        <div id="book-meta" class="book-meta">尚未导入书籍<br><small>书籍保存在本机浏览器中</small></div>
+        <button id="open-book-shelf" class="side-button shelf-open-button" type="button">📚 书架 · 0 本</button>
         <input id="chapter-search" class="chapter-search" placeholder="搜索章节，例如：卷二十一">
         <nav id="chapter-list" class="chapter-list"></nav>
         <div class="sidebar-tools">
@@ -517,6 +684,18 @@ function renderApp() {
         </div>
       </main>
     </div>
+    <div id="book-shelf-overlay" class="shelf-overlay" hidden>
+      <section class="shelf-dialog" role="dialog" aria-modal="true" aria-labelledby="shelf-title">
+        <header class="shelf-dialog-header">
+          <div><h2 id="shelf-title">我的书架</h2><p id="shelf-count">书籍保存在本机浏览器</p></div>
+          <div class="shelf-dialog-actions">
+            <button id="shelf-import" class="side-button" type="button">＋ 导入另一本</button>
+            <button id="shelf-close" class="dialog-close" type="button" aria-label="关闭书架">×</button>
+          </div>
+        </header>
+        <div id="book-shelf-grid" class="shelf-grid"></div>
+      </section>
+    </div>
   `;
 
   document.querySelector("#book-file").addEventListener("change", async (event) => {
@@ -533,6 +712,17 @@ function renderApp() {
   document.querySelector("#chapter-search").addEventListener("input", (event) => {
     state.search = event.target.value;
     renderChapterList();
+  });
+  document.querySelector("#open-book-shelf").addEventListener("click", openBookShelf);
+  document.querySelector("#shelf-close").addEventListener("click", () => {
+    document.querySelector("#book-shelf-overlay").hidden = true;
+  });
+  document.querySelector("#book-shelf-overlay").addEventListener("click", (event) => {
+    if (event.target.id === "book-shelf-overlay") event.currentTarget.hidden = true;
+  });
+  document.querySelector("#shelf-import").addEventListener("click", () => {
+    document.querySelector("#book-shelf-overlay").hidden = true;
+    document.querySelector("#book-file").click();
   });
   document.querySelector("#generate").addEventListener("click", generateMixedChapter);
   document.querySelector("#pause-generation").addEventListener("click", () => {
@@ -559,11 +749,15 @@ function renderApp() {
   document.querySelector("#clear-cache").addEventListener("click", handleClearCache);
   document.querySelector("#export-pages").addEventListener("click", handlePagesExport);
   document.querySelector("#reader").addEventListener("click", handleReaderClick);
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") document.querySelector("#book-shelf-overlay").hidden = true;
+  });
 }
 
 async function bootstrap() {
   renderApp();
   await refreshStorageSummary();
+  try { await refreshBookShelf(); } catch (error) { console.warn(`[book-shelf] ${error.message}`); }
   try {
     state.apiStatus = await getApiStatus();
     renderModelConfig();
@@ -576,7 +770,11 @@ async function bootstrap() {
   } catch (error) {
     setStatus(`本机服务未连接：${error.message}`, "error");
   }
+  const publishedSync = await syncPublishedCache();
   await restoreLastBook();
+  if (publishedSync?.changedCount > 0) {
+    setStatus(`已同步静态阅读版的 ${publishedSync.changedCount} 个章节到本地缓存。`, "success");
+  }
 }
 
 bootstrap();

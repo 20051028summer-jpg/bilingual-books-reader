@@ -3,11 +3,13 @@ import assert from "node:assert/strict";
 import { buildAnalyzerUserPrompt, MIX_ANALYZER_SYSTEM_PROMPT, PROMPT_VERSION } from "../prompts/system-prompts.mjs";
 import { normalizeDensity, normalizeLevel } from "../src/settings.js";
 
-test("maps the three UI density levels to 10, 20, and 40 percent", () => {
+test("maps the UI density levels and accepts the 25 and 30 percent translation targets", () => {
   assert.equal(normalizeDensity("light"), 10);
   assert.equal(normalizeDensity("medium"), 20);
+  assert.equal(normalizeDensity(25), 25);
+  assert.equal(normalizeDensity(30), 30);
   assert.equal(normalizeDensity("dense"), 40);
-  assert.throws(() => normalizeDensity(15), /10%、20% 或 40%/);
+  assert.throws(() => normalizeDensity(15), /10%、20%、25%、30% 或 40%/);
 });
 
 test("passes the selected learner level and density into the runtime prompt", () => {

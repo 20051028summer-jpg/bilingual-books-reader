@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { findStagedBook, sanitizePagesManifest, stagePagesBook } from "../pages-export.mjs";
+import { findStagedBook, mergePagesManifests, sanitizePagesManifest, stagePagesBook } from "../pages-export.mjs";
 
 test("Pages manifest keeps reading data and strips model/API metadata", () => {
   const staged = { id: "demo.epub:4:123", fileName: "book.epub", bytes: 4, sha256: "a".repeat(64) };
@@ -27,6 +27,29 @@ test("Pages manifest keeps reading data and strips model/API metadata", () => {
   assert.equal(serialized.includes("must-not-leak"), false);
   assert.equal(serialized.includes("deepseek-v4-flash"), false);
   assert.equal(serialized.includes("confidence"), false);
+  assert.equal(manifest.chapters[0].paragraphMeta[0][1].generatedAt > 0, true);
+});
+
+test("Pages manifest keeps the newest paragraph when local and Codex results are merged", () => {
+  const book = { id: "demo", chapterCount: 2, sha256: "a".repeat(64) };
+  const existing = {
+    schemaVersion: 2, exportedAt: "2026-09-20T00:00:00.000Z", book,
+    chapters: [{ chapterIndex: 1, totalCount: 2, mixedByParagraph: [
+      [0, [{ start: 0, end: 2, source: "原文", replacement: "new" }]],
+      [1, [{ start: 0, end: 2, source: "旧文", replacement: "kept" }]],
+    ], paragraphMeta: [[0, { generatedAt: 300 }], [1, { generatedAt: 500 }]] }],
+  };
+  const incoming = {
+    schemaVersion: 2, exportedAt: "2026-09-21T00:00:00.000Z", book,
+    chapters: [{ chapterIndex: 1, totalCount: 2, mixedByParagraph: [
+      [0, [{ start: 0, end: 2, source: "原文", replacement: "old" }]],
+      [1, [{ start: 0, end: 2, source: "旧文", replacement: "latest" }]],
+    ], paragraphMeta: [[0, { generatedAt: 200 }], [1, { generatedAt: 600 }]] }],
+  };
+  const merged = mergePagesManifests(existing, incoming);
+  assert.equal(merged.chapters[0].mixedByParagraph[0][1][0].replacement, "new");
+  assert.equal(merged.chapters[0].mixedByParagraph[1][1][0].replacement, "latest");
+  assert.equal(merged.stats.replacements, 2);
 });
 
 test("staged book can only be found by its generated token", () => {

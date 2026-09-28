@@ -12,6 +12,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body, #app { height: 100%; overflow: hidden; }
 body { margin: 0; min-width: 320px; }
 button, input, select { font: inherit; }
@@ -109,6 +110,7 @@ button { cursor: pointer; }
   background: #365247;
   color: white;
 }
+.shelf-open-button { width: 100%; margin-top: -4px; text-align: center; }
 .storage-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
 .text-button { border: 0; padding: 0; background: transparent; color: #dfb29e; white-space: nowrap; font-size: 11px; }
 .pages-export-panel { display: grid; gap: 6px; margin-top: 9px; }
@@ -198,6 +200,41 @@ button { cursor: pointer; }
 .empty-state { color: var(--muted); text-align: center; padding: 90px 20px; line-height: 2; }
 .empty-state h1 { color: var(--ink); font-family: Georgia, "Songti SC", serif; }
 
+.shelf-overlay {
+  position: fixed; inset: 0; z-index: 80; display: grid; place-items: center;
+  padding: 22px; background: rgba(20, 30, 26, .68); backdrop-filter: blur(4px);
+}
+.shelf-dialog {
+  width: min(1060px, 100%); height: min(800px, calc(100dvh - 44px)); overflow: hidden;
+  display: flex; flex-direction: column; border: 1px solid #d7d0c2; border-radius: 16px;
+  background: #f8f5ee; box-shadow: 0 28px 90px rgba(20, 30, 26, .35);
+}
+.shelf-dialog-header { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 24px; border-bottom: 1px solid var(--line); }
+.shelf-dialog-header h2 { margin: 0 0 5px; color: var(--ink); font-family: Georgia, "Songti SC", serif; font-size: 25px; }
+.shelf-dialog-header p { margin: 0; color: var(--muted); font-size: 13px; }
+.shelf-dialog-actions { display: flex; align-items: center; gap: 10px; }
+.shelf-dialog-actions .side-button { background: #315f48; }
+.dialog-close {
+  width: 38px; height: 38px; flex: none; border: 0; border-radius: 50%;
+  background: #e8e3d8; color: #405149; font-size: 25px; line-height: 1;
+}
+.shelf-grid { min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); align-content: start; gap: 18px; padding: 24px; }
+.shelf-book-card {
+  min-width: 0; min-height: 325px; display: flex; flex-direction: column; align-items: stretch;
+  padding: 14px; border: 1px solid #d8d2c5; border-radius: 12px; background: #fffdf7;
+  color: var(--ink); text-align: left; box-shadow: 0 8px 24px rgba(63,53,39,.07);
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+}
+.shelf-book-open { min-width: 0; flex: 1; display: flex; flex-direction: column; align-items: stretch; border: 0; padding: 0; background: transparent; color: inherit; text-align: left; }
+.shelf-book-card:hover, .shelf-book-card:focus-within { transform: translateY(-3px); border-color: #789684; outline: none; box-shadow: 0 14px 32px rgba(49,95,72,.15); }
+.shelf-book-card.active { border-color: #477a61; box-shadow: 0 0 0 2px rgba(71,122,97,.18); }
+.shelf-book-cover { min-height: 180px; display: grid; place-items: center; margin-bottom: 14px; border-radius: 7px; background: linear-gradient(145deg, #426553, #21332c); color: #f3efe6; font-family: Georgia, "Songti SC", serif; font-size: 58px; }
+.shelf-book-title { overflow: hidden; color: #26352e; font-family: Georgia, "Songti SC", serif; font-size: 16px; line-height: 1.45; text-overflow: ellipsis; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.shelf-book-details { margin-top: 5px; color: #758178; font-size: 12px; line-height: 1.45; }
+.shelf-book-delete { flex: none; align-self: flex-start; margin-top: 9px; border: 0; padding: 5px 7px; background: transparent; color: #a14b39; font-size: 12px; }
+.shelf-book-delete:hover { color: #7d2617; text-decoration: underline; }
+.shelf-empty { grid-column: 1 / -1; padding: 64px 20px; color: var(--muted); text-align: center; }
+
 @media (max-width: 760px) {
   .app-shell { height: 100dvh; grid-template-columns: 1fr; grid-template-rows: 38dvh 62dvh; }
   .sidebar { height: 38dvh; padding: 12px; gap: 8px; }
@@ -210,4 +247,12 @@ button { cursor: pointer; }
   .status { min-height: 34px; padding: 7px 12px; }
   .reader { width: calc(100% - 18px); margin: 9px auto 40px; padding: 32px 20px; }
   .reader-paragraph { font-size: 17px; }
+  .shelf-overlay { padding: 10px; }
+  .shelf-dialog { height: calc(100dvh - 20px); }
+  .shelf-dialog-header { align-items: flex-start; padding: 16px; }
+  .shelf-dialog-actions { gap: 6px; }
+  .shelf-dialog-actions .side-button { padding: 7px 9px; font-size: 12px; }
+  .shelf-grid { grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); gap: 12px; padding: 14px; }
+  .shelf-book-card { min-height: 270px; padding: 10px; }
+  .shelf-book-cover { min-height: 140px; font-size: 46px; }
 }

@@ -5,6 +5,7 @@ import { findPublishedMatches, normalizePublishedSearchQuery } from "./search-in
 
 const app = document.querySelector("#app");
 const state = {
+  catalog: [],
   manifest: null,
   book: null,
   chapterIndex: 0,
@@ -63,6 +64,92 @@ function renderChapterList() {
     });
     return button;
   }));
+  const activeChapter = list.querySelector(".chapter-button.active");
+  if (activeChapter) {
+    const listBounds = list.getBoundingClientRect();
+    const chapterBounds = activeChapter.getBoundingClientRect();
+    list.scrollTop += chapterBounds.top - listBounds.top - (list.clientHeight - activeChapter.offsetHeight) / 2;
+  }
+}
+
+function setBookShelfVisible(visible) {
+  document.querySelector("#book-shelf").hidden = !visible;
+  document.querySelector("#reader-scroll").hidden = visible;
+  document.querySelector("#status").hidden = visible;
+}
+
+function renderBookShelf() {
+  const shelf = document.querySelector("#book-shelf");
+  shelf.replaceChildren();
+  const heading = document.createElement("div");
+  heading.className = "shelf-heading";
+  const title = document.createElement("h1");
+  title.textContent = "我的书架";
+  const count = document.createElement("p");
+  count.textContent = `${state.catalog.length} 本书 · 选择一本继续阅读`;
+  heading.append(title, count);
+  const grid = document.createElement("div");
+  grid.className = "shelf-grid";
+  for (const entry of state.catalog) {
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "shelf-book-card";
+    const cover = document.createElement("span");
+    cover.className = "shelf-book-cover";
+    cover.setAttribute("aria-hidden", "true");
+    cover.textContent = entry.format === "TXT" ? "文" : "书";
+    const name = document.createElement("strong");
+    name.className = "shelf-book-title";
+    name.textContent = entry.title || "未命名书籍";
+    const details = document.createElement("span");
+    details.className = "shelf-book-details";
+    const chapterLabel = Number(entry.chapterCount) > 0 ? `${entry.chapterCount} 章` : "电子书";
+    const savedLabel = Number(entry.stats?.cachedChapters) > 0 ? ` · ${entry.stats.cachedChapters} 章有双语内容` : "";
+    details.textContent = `${chapterLabel}${savedLabel}`;
+    card.append(cover, name, details);
+    card.addEventListener("click", () => openPublishedBook(entry));
+    grid.append(card);
+  }
+  if (!state.catalog.length) {
+    const empty = document.createElement("p");
+    empty.className = "shelf-empty";
+    empty.textContent = "书架暂时没有书籍。请在本地完整版中导出阅读版后重新部署。";
+    grid.append(empty);
+  }
+  shelf.append(heading, grid);
+}
+
+async function openPublishedBook(entry) {
+  setBookShelfVisible(false);
+  setStatus(`正在打开：${entry.title || "书籍"}`);
+  try {
+    const manifestAsset = String(entry.manifest || "library/manifest.json");
+    if (!/^library\/(?:manifest\.json|manifests\/[a-f0-9]{64}\.json)$/i.test(manifestAsset)) {
+      throw new Error("书籍清单路径无效");
+    }
+    const manifestResponse = await fetch(`./${manifestAsset}`, { cache: "no-cache" });
+    if (!manifestResponse.ok) throw new Error(`书籍清单读取失败（${manifestResponse.status}）`);
+    const manifest = await manifestResponse.json();
+    const bookResponse = await fetch(`./${manifest.book.asset}`, { cache: "force-cache" });
+    if (!bookResponse.ok) throw new Error(`书籍文件读取失败（${bookResponse.status}）`);
+    const blob = await bookResponse.blob();
+    const extension = manifest.book.format === "TXT" ? ".txt" : ".epub";
+    const book = await loadBook(new File([blob], `${manifest.book.title || "published-book"}${extension}`, { type: blob.type }));
+    state.manifest = manifest;
+    state.book = book;
+    state.chapterParagraphs.clear();
+    state.cacheByChapter = new Map(manifest.chapters.map((chapter) => [chapter.chapterIndex, chapter]));
+    document.querySelector("#word-search-open").disabled = false;
+    document.title = `${manifest.book.title} · 词间阅读器`;
+    document.querySelector("#book-meta").textContent = `${manifest.book.title} · ${book.chapters.length} 个章节`;
+    document.querySelector("#release-stats").textContent = `${manifest.stats.cachedChapters} 个章节有生成记录 · ${manifest.stats.replacements} 处双语替换`;
+    document.querySelector("#release-time").textContent = `更新于 ${new Date(manifest.exportedAt).toLocaleString("zh-CN")}`;
+    const saved = Number(localStorage.getItem(`wordnov-pages-last-chapter:${manifest.book.sha256}`));
+    await openChapter(Number.isInteger(saved) && book.chapters[saved] ? saved : 0);
+  } catch (error) {
+    setBookShelfVisible(true);
+    setStatus(`无法打开《${entry.title || "书籍"}》：${error.message}`, "error");
+  }
 }
 
 function scrollToChapterAnchor(fragment) {
@@ -263,6 +350,7 @@ function renderShell() {
           <button id="sidebar-close" class="sidebar-close" type="button" aria-label="关闭章节目录">×</button>
         </div>
         <div id="book-meta" class="book-meta">正在加载书籍……</div>
+        <button id="open-book-shelf" class="side-button" type="button">书架 · 切换图书</button>
         <input id="chapter-search" class="chapter-search" placeholder="搜索章节，例如：卷二十一">
         <nav id="chapter-list" class="chapter-list" aria-label="章节目录"></nav>
         <div class="release-info">
@@ -275,11 +363,13 @@ function renderShell() {
         <header class="toolbar">
           <div class="toolbar-actions">
             <button id="sidebar-toggle" class="toolbar-button mobile-menu-button" type="button" aria-controls="sidebar" aria-expanded="false">☰ 目录</button>
+            <button id="book-shelf-button" class="toolbar-button" type="button">书架</button>
             <button id="word-search-open" class="toolbar-button" type="button" aria-controls="word-search-overlay" aria-expanded="false" disabled>⌕ 搜索词</button>
           </div>
           <span class="toolbar-instruction">点击英文可切换回原文，再点一次恢复英文</span>
           <span class="static-badge">只读版 · 不连接 AI</span>
         </header>
+        <section id="book-shelf" class="book-shelf" aria-label="我的书架" hidden></section>
         <div id="status" class="status">正在加载发布数据……</div>
         <div id="reader-scroll" class="reader-scroll">
           <article id="reader" class="reader">
@@ -307,6 +397,15 @@ function renderShell() {
     renderChapterList();
   });
   document.querySelector("#reader").addEventListener("click", handleReaderClick);
+  document.querySelector("#book-shelf-button").addEventListener("click", () => {
+    setBookShelfVisible(true);
+    renderBookShelf();
+  });
+  document.querySelector("#open-book-shelf").addEventListener("click", () => {
+    setBookShelfVisible(true);
+    renderBookShelf();
+    setSidebarOpen(false);
+  });
   document.querySelector("#sidebar-toggle").addEventListener("click", () => setSidebarOpen(true));
   document.querySelector("#sidebar-close").addEventListener("click", () => setSidebarOpen(false));
   document.querySelector("#sidebar-backdrop").addEventListener("click", () => setSidebarOpen(false));
@@ -330,27 +429,34 @@ function renderShell() {
 
 async function bootstrap() {
   renderShell();
+  setBookShelfVisible(true);
   try {
-    const manifestResponse = await fetch("./library/manifest.json", { cache: "no-cache" });
-    if (!manifestResponse.ok) throw new Error(`发布清单读取失败（${manifestResponse.status}）`);
-    state.manifest = await manifestResponse.json();
-    const bookResponse = await fetch(`./${state.manifest.book.asset}`, { cache: "force-cache" });
-    if (!bookResponse.ok) throw new Error(`书籍文件读取失败（${bookResponse.status}）`);
-    const blob = await bookResponse.blob();
-    const extension = state.manifest.book.format === "TXT" ? ".txt" : ".epub";
-    state.book = await loadBook(new File([blob], `published-book${extension}`, { type: blob.type }));
-    state.cacheByChapter = new Map(state.manifest.chapters.map((chapter) => [chapter.chapterIndex, chapter]));
-    document.querySelector("#word-search-open").disabled = false;
-    document.title = `${state.manifest.book.title} · 词间阅读器`;
-    document.querySelector("#book-meta").textContent = `${state.manifest.book.title} · ${state.book.chapters.length} 个章节`;
-    const stats = state.manifest.stats;
-    document.querySelector("#release-stats").textContent = `${stats.cachedChapters} 个章节有生成记录 · ${stats.replacements} 处双语替换`;
-    document.querySelector("#release-time").textContent = `更新于 ${new Date(state.manifest.exportedAt).toLocaleString("zh-CN")}`;
-    const saved = Number(localStorage.getItem(`wordnov-pages-last-chapter:${state.manifest.book.sha256}`));
-    await openChapter(Number.isInteger(saved) && state.book.chapters[saved] ? saved : 0);
+    const catalogResponse = await fetch("./library/catalog.json", { cache: "no-cache" });
+    if (catalogResponse.ok) {
+      const catalog = await catalogResponse.json();
+      state.catalog = Array.isArray(catalog.books) ? catalog.books : [];
+    } else {
+      if (catalogResponse.status !== 404) throw new Error(`书架目录读取失败（${catalogResponse.status}）`);
+      const manifestResponse = await fetch("./library/manifest.json", { cache: "no-cache" });
+      if (!manifestResponse.ok) throw new Error(`发布清单读取失败（${manifestResponse.status}）`);
+      const manifest = await manifestResponse.json();
+      state.catalog = [{
+        sha256: manifest.book.sha256,
+        title: manifest.book.title,
+        format: manifest.book.format,
+        chapterCount: manifest.book.chapterCount,
+        stats: manifest.stats,
+        exportedAt: manifest.exportedAt,
+        manifest: "library/manifest.json",
+      }];
+    }
+    renderBookShelf();
+    document.querySelector("#status").textContent = state.catalog.length
+      ? `书架已就绪 · ${state.catalog.length} 本书`
+      : "书架为空";
   } catch (error) {
     setStatus(`静态阅读版加载失败：${error.message}`, "error");
-    document.querySelector("#reader").innerHTML = `<div class="empty-state"><h1>无法打开阅读版</h1><p>请确认 library/manifest.json 与书籍文件已经生成并发布。</p></div>`;
+    document.querySelector("#book-shelf").textContent = `无法加载书架：${error.message}`;
   }
 }
 
